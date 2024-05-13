@@ -225,6 +225,8 @@ void AllocateAlquimiaProperties(const AlquimiaSizes* const sizes,
                                &(props->mineral_rate_cnst));
   AllocateAlquimiaVectorDouble(sizes->num_aqueous_kinetics,
                                &(props->aqueous_kinetic_rate_cnst));
+  AllocateAlquimiaVectorDouble(sizes->num_third_party_parameters,
+                               &(props->third_party_parameter));
 
 }  /* end AllocateAlquimiaProperties() */
 
@@ -235,6 +237,7 @@ void FreeAlquimiaProperties(AlquimiaProperties* props) {
     FreeAlquimiaVectorDouble(&(props->langmuir_b));
     FreeAlquimiaVectorDouble(&(props->mineral_rate_cnst));
     FreeAlquimiaVectorDouble(&(props->aqueous_kinetic_rate_cnst));
+    FreeAlquimiaVectorDouble(&(props->third_party_parameter));
   }
 }  /* end FreeAlquimiaProperties() */
 
@@ -271,6 +274,9 @@ void AllocateAlquimiaProblemMetaData(const AlquimiaSizes* const sizes,
   AllocateAlquimiaVectorString(sizes->num_gases,
                                &(meta_data->gas_names));
 
+  AllocateAlquimiaVectorString(sizes->num_third_party_parameters,
+                               &(meta_data->third_party_parameter_names));
+
 }  /* end AllocateAlquimiaProblemMetaData() */
 
 void FreeAlquimiaProblemMetaData(AlquimiaProblemMetaData* meta_data) {
@@ -284,6 +290,7 @@ void FreeAlquimiaProblemMetaData(AlquimiaProblemMetaData* meta_data) {
     FreeAlquimiaVectorString(&(meta_data->isotherm_species_names));
     FreeAlquimiaVectorString(&(meta_data->aqueous_kinetic_names));
     FreeAlquimiaVectorString(&(meta_data->gas_names));
+    FreeAlquimiaVectorString(&(meta_data->third_party_parameter_names));
   }
 }  /* end FreeAlquimiaProblemMetaData() */
 

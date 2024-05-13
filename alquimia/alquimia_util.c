@@ -132,6 +132,7 @@ void CopyAlquimiaProblemMetaData(const AlquimiaProblemMetaData* const source,
   CopyAlquimiaVectorString(&source->isotherm_species_names, &destination->isotherm_species_names);
   CopyAlquimiaVectorString(&source->aqueous_kinetic_names, &destination->aqueous_kinetic_names);
   CopyAlquimiaVectorString(&source->gas_names, &destination->gas_names);
+  CopyAlquimiaVectorString(&source->third_party_parameter_names, &destination->third_party_parameter_names);
 }
 
 void CopyAlquimiaProperties(const AlquimiaProperties* const source, 
@@ -144,6 +145,7 @@ void CopyAlquimiaProperties(const AlquimiaProperties* const source,
   CopyAlquimiaVectorDouble(&source->langmuir_b, &destination->langmuir_b);
   CopyAlquimiaVectorDouble(&source->mineral_rate_cnst, &destination->mineral_rate_cnst);
   CopyAlquimiaVectorDouble(&source->aqueous_kinetic_rate_cnst, &destination->aqueous_kinetic_rate_cnst);
+  CopyAlquimiaVectorDouble(&source->third_party_parameter, &destination->third_party_parameter);
 }
 
 void CopyAlquimiaEngineFunctionality(const AlquimiaEngineFunctionality* const source, 
@@ -401,6 +403,7 @@ void PrintAlquimiaSizes(const AlquimiaSizes* const sizes, FILE* file) {
   fprintf(file, "     num surface sites : %d\n", sizes->num_surface_sites);
   fprintf(file, "     num ion exchange sites : %d\n", sizes->num_ion_exchange_sites);
   fprintf(file, "     num gases: %d\n", sizes->num_gases);
+  fprintf(file, "     num third party parameters: %d\n", sizes->num_third_party_parameters);
   fprintf(file, "     num auxiliary integers : %d\n", sizes->num_aux_integers);
   fprintf(file, "     num auxiliary doubles : %d\n", sizes->num_aux_doubles);
 }  /* end PrintAlquimiaSizes() */
@@ -428,6 +431,7 @@ void PrintAlquimiaProblemMetaData(const AlquimiaProblemMetaData* const meta_data
   PrintAlquimiaVectorString("isotherm species names", &(meta_data->isotherm_species_names), file);
   PrintAlquimiaVectorString("aqueous kinetic names", &(meta_data->aqueous_kinetic_names), file);
   PrintAlquimiaVectorString("gas names", &(meta_data->gas_names), file);
+  PrintAlquimiaVectorString("third party parameters", &(meta_data->third_party_parameter_names), file);
 }  /* end PrintAlquimiaProblemMetaData() */
 
 void PrintAlquimiaProperties(const AlquimiaProperties* const mat_prop, FILE* file) {
@@ -440,6 +444,7 @@ void PrintAlquimiaProperties(const AlquimiaProperties* const mat_prop, FILE* fil
   PrintAlquimiaVectorDouble("langmuir b", &(mat_prop->langmuir_b), file);
   PrintAlquimiaVectorDouble("mineral rate cnst", &(mat_prop->mineral_rate_cnst), file);
   PrintAlquimiaVectorDouble("aqueous kinetic rate cnst", &(mat_prop->aqueous_kinetic_rate_cnst), file);
+  PrintAlquimiaVectorDouble("third party parameter", &(mat_prop->third_party_parameter), file);
 }  /* end PrintAlquimiaProperties() */
 
 void PrintAlquimiaState(const AlquimiaState* const state, FILE* file) {

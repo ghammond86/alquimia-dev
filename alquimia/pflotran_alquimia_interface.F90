@@ -244,7 +244,7 @@ subroutine Setup(input_filename, hands_off, pft_engine_state, sizes, &
   ! close the input file because we don't need it any more
   call InputDestroy(input)
 
-  call SetAlquimiaSizes(reaction, sizes)
+  call SetAlquimiaSizes(option, reaction, sizes)
   !FIXME(bja): need some way to identify pflotran ion exchange sites
   !when there are more than one. Use the mineral name?
   if (sizes%num_ion_exchange_sites > 1) then
@@ -293,7 +293,7 @@ subroutine Shutdown(pft_engine_state, status)
   ! pflotran
   use Option_module, only : OptionDestroy
   use Driver_class, only : DriverDestroy
-  use Reaction_aux_module, only : ReactionDestroy
+  use Reaction_aux_module, only : ReactionAuxDestroyAux
   use Transport_Constraint_Base_module, only : tran_constraint_coupler_base_type
   use Transport_Constraint_module, only : TranConstraintCouplerDestroy, &
                                           TranConstraintListDestroy
@@ -326,7 +326,7 @@ subroutine Shutdown(pft_engine_state, status)
   ! FIXME(bja) : causes error freeing memory.
   !call RTAuxVarDestroy(engine_state%rt_auxvar)
   !call GlobalAuxVarDestroy(engine_state%global_auxvar)
-  call ReactionDestroy(engine_state%reaction, engine_state%option)
+  call ReactionAuxDestroyAux(engine_state%reaction, engine_state%option)
   call DriverDestroy(engine_state%option%driver)
   call OptionDestroy(engine_state%option)
 
@@ -391,7 +391,7 @@ subroutine ProcessCondition(pft_engine_state, condition, properties, &
   ! NOTE(bja): the data stored in alquimia's aux_data is uninitialized
   ! at this point, so don't want to copy it! (copy_auxdata = false)
   call CopyAlquimiaToAuxVars(copy_auxdata, engine_state%hands_off, &
-       state, aux_data, properties, &
+       state, aux_data, properties, engine_state%option, &
        engine_state%reaction, engine_state%global_auxvar, &
        engine_state%material_auxvar, engine_state%rt_auxvar)
 
@@ -524,7 +524,7 @@ subroutine ReactionStepOperatorSplit(pft_engine_state, &
   !call PrintState(state)
   
   call CopyAlquimiaToAuxVars(copy_auxdata, engine_state%hands_off, &
-       state, aux_data, properties, &
+       state, aux_data, properties, engine_state%option, &
        reaction, engine_state%global_auxvar, &
        engine_state%material_auxvar, engine_state%rt_auxvar)
 
@@ -608,7 +608,7 @@ subroutine GetAuxiliaryOutput( &
   use AlquimiaContainers_module
 
   ! pflotran
-  use Reaction_Mineral_module, only : RMineralSaturationIndex
+  use Reaction_Mineral_module, only : ReactionMnrlSaturationIndex
 
   implicit none
 
@@ -672,7 +672,7 @@ subroutine GetAuxiliaryOutput( &
   call c_f_pointer(aux_output%mineral_saturation_index%data, local_array, &
        (/aux_output%mineral_saturation_index%size/))
   do i = 1, aux_output%mineral_saturation_index%size
-     local_array(i) = RMineralSaturationIndex(i, engine_state%rt_auxvar, &
+     local_array(i) = ReactionMnrlSaturationIndex(i, engine_state%rt_auxvar, &
           engine_state%global_auxvar, &
           engine_state%reaction, engine_state%option)
   end do
@@ -945,9 +945,22 @@ subroutine GetProblemMetaData(pft_engine_state, meta_data, status)
   !
   ! coming soon
   
+  !
+  ! parameters
+  !
+  list_size = meta_data%third_party_parameter_names%size
+  call c_f_pointer(meta_data%third_party_parameter_names%data, name_list, &
+       (/list_size/))
+  do i = 1, list_size
+    call c_f_pointer(name_list(i), name)
+    call f_c_string_chars( &
+          trim(engine_state%option%parameter%parameter_names(i)), &
+          name, kAlquimiaMaxStringLength)
+  end do
  
 
   status%error = 0
+
 end subroutine GetProblemMetaData
 
 
@@ -1050,15 +1063,17 @@ subroutine SetEngineFunctionality(reaction, option, functionality)
 end subroutine SetEngineFunctionality
 
 ! **************************************************************************** !
-subroutine SetAlquimiaSizes(reaction, sizes)
+subroutine SetAlquimiaSizes(option, reaction, sizes)
 
   use AlquimiaContainers_module, only : AlquimiaSizes
 
+  use Option_module, only : option_type
   use Reaction_aux_module, only : reaction_rt_type
 
   implicit none
 
   ! function parameters
+  type (option_type), intent(in) :: option
   class (reaction_rt_type), intent(in) :: reaction
   type (AlquimiaSizes), intent(out) :: sizes
 
@@ -1077,6 +1092,7 @@ subroutine SetAlquimiaSizes(reaction, sizes)
   sizes%num_isotherm_species = reaction%isotherm%neqkdrxn
 !!  sizes%num_total_gases = 0 ! placeholder - gas capabilities not available for pflotran yet
   sizes%num_gases = 0 ! placeholder - gas capabilities not available for pflotran yet
+  sizes%num_third_party_parameters = option%parameter%num_parameters
   call GetAuxiliaryDataSizes(reaction, &
        sizes%num_aux_integers, sizes%num_aux_doubles)
 
@@ -1184,7 +1200,8 @@ subroutine InitializePFLOTRANReactions(option, input, reaction)
   ! pflotran
   use Reaction_module, only : ReactionInit, ReactionReadPass2
   use Reaction_Aux_module, only : reaction_rt_type, ACT_COEF_FREQUENCY_OFF
-  use Reaction_Database_module, only : DatabaseRead, BasisInit
+  use Reaction_Database_module, only : ReactionDBReadDatabase, &
+                                       ReactionDBInitBasis
   use Option_module, only : option_type
   use Input_Aux_module, only : input_type, InputFindStringInFile, InputError
   use petscsys
@@ -1216,9 +1233,9 @@ subroutine InitializePFLOTRANReactions(option, input, reaction)
   endif
     
   if (associated(reaction)) then
-    if (reaction%use_full_geochemistry) then
-       call DatabaseRead(reaction, option)
-       call BasisInit(reaction, option)    
+    if (.not.option%transport%conservative_transport_only) then
+       call ReactionDBReadDatabase(reaction, option)
+       call ReactionDBInitBasis(reaction, option)    
     else
       ! NOTE(bja): do we need this for the batch chemistry driver?
 
@@ -1405,16 +1422,17 @@ function ConvertAlquimiaConditionToPflotran(&
   ! pflotran
   use Option_module, only : option_type, PrintErrMsg, PrintMsg
   use Reaction_aux_module, only : reaction_rt_type, &
-        aq_species_constraint_type, AqueousSpeciesConstraintCreate
+        aq_species_constraint_type, ReactionAuxCreateSpecConstraint
   use Reaction_Mineral_Aux_module, only : mineral_constraint_type, &
-        MineralConstraintCreate
+        ReactionMnrlCreateMnrlConstraint
   use String_module, only : StringCompareIgnoreCase
   use Transport_Constraint_RT_module, only : tran_constraint_rt_type, &
         TranConstraintRTCreate, &
         CONSTRAINT_FREE, CONSTRAINT_TOTAL, CONSTRAINT_TOTAL_SORB, &
         CONSTRAINT_PH, CONSTRAINT_MINERAL, &
         CONSTRAINT_GAS, CONSTRAINT_CHARGE_BAL, CONSTRAINT_TOTAL_AQ_PLUS_SORB
-  use Reaction_Immobile_Aux_module, only : immobile_constraint_type, ImmobileConstraintCreate
+  use Reaction_Immobile_Aux_module, only : immobile_constraint_type, &
+        ReactionImConstraintCreate
   use petscsys
 
   implicit none
@@ -1460,10 +1478,10 @@ function ConvertAlquimiaConditionToPflotran(&
 
   ! NOTE(bja) : this is the container for ALL aqueous constraints
   pft_aq_species_constraint => &
-       AqueousSpeciesConstraintCreate(reaction, option)
+    ReactionAuxCreateSpecConstraint(reaction, option)
 
   pft_immobile_species_constraint => &
-      ImmobileConstraintCreate(reaction%immobile, option)
+    ReactionImConstraintCreate(reaction%immobile, option)
 
   call c_f_pointer(alquimia_condition%aqueous_constraints%data, &
        alq_aqueous_constraints, (/alquimia_condition%aqueous_constraints%size/))
@@ -1549,7 +1567,8 @@ function ConvertAlquimiaConditionToPflotran(&
      call PrintErrMsg(option)
   end if
 
-  pft_mineral_constraint => MineralConstraintCreate(reaction%mineral, option)
+  pft_mineral_constraint => &
+    ReactionMnrlCreateMnrlConstraint(reaction%mineral, option)
 
   call c_f_pointer(alquimia_condition%mineral_constraints%data, &
        alq_mineral_constraints, (/alquimia_condition%mineral_constraints%size/))
@@ -1570,7 +1589,7 @@ end function ConvertAlquimiaConditionToPflotran
 
 ! **************************************************************************** !
 subroutine CopyAlquimiaToAuxVars(copy_auxdata, hands_off, &
-  state, aux_data, prop, &
+  state, aux_data, prop, option, &
   reaction, global_auxvar, material_auxvar, rt_auxvar)
 
   use, intrinsic :: iso_c_binding, only : c_double, c_f_pointer
@@ -1591,6 +1610,7 @@ subroutine CopyAlquimiaToAuxVars(copy_auxdata, hands_off, &
   type (AlquimiaState), intent(in) :: state
   type (AlquimiaAuxiliaryData), intent(in) :: aux_data
   type (AlquimiaProperties), intent(in) :: prop
+  type(option_type), pointer, intent(in) :: option
   class(reaction_rt_type), pointer, intent(inout) :: reaction
   type(global_auxvar_type), pointer, intent(inout) :: global_auxvar
   type(material_auxvar_type), pointer, intent(inout) :: material_auxvar
@@ -1731,6 +1751,12 @@ subroutine CopyAlquimiaToAuxVars(copy_auxdata, hands_off, &
   if (copy_auxdata) then
      call UnpackAlquimiaAuxiliaryData(aux_data, reaction, rt_auxvar)
   end if
+
+  ! parameters
+  call c_f_pointer(prop%third_party_parameter%data, data, (/option%parameter%num_parameters/))
+  do i = 1, option%parameter%num_parameters
+     global_auxvar%parameters(i) = data(i)
+  end do
 
 end subroutine CopyAlquimiaToAuxVars
 

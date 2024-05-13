@@ -72,6 +72,7 @@ extern "C" {
     int num_isotherm_species;
     //    int num_total_gases;
     int num_gases;
+    int num_third_party_parameters;
     int num_aux_integers;
     int num_aux_doubles;
   } AlquimiaSizes;
@@ -99,6 +100,7 @@ extern "C" {
     AlquimiaVectorDouble langmuir_b;  /* [-] */
     AlquimiaVectorDouble mineral_rate_cnst; /* [mol/m^2-sec] */    
     AlquimiaVectorDouble aqueous_kinetic_rate_cnst; /* [sec^-1] */
+    AlquimiaVectorDouble third_party_parameter; /* [-] */
   } AlquimiaProperties;
   
   typedef struct {
@@ -134,6 +136,7 @@ extern "C" {
     AlquimiaVectorString isotherm_species_names;
     AlquimiaVectorString aqueous_kinetic_names;
     AlquimiaVectorString gas_names;
+    AlquimiaVectorString third_party_parameter_names;
   } AlquimiaProblemMetaData;
   
   typedef struct {

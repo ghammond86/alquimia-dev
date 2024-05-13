@@ -101,6 +101,7 @@ module AlquimiaContainers_module
      integer (c_int) :: num_ion_exchange_sites
      integer (c_int) :: num_isotherm_species
      integer (c_int) :: num_gases
+     integer (c_int) :: num_third_party_parameters
 !!     integer (c_int) :: num_gas_species
      integer (c_int) :: num_aux_integers
      integer (c_int) :: num_aux_doubles
@@ -130,6 +131,7 @@ module AlquimiaContainers_module
      type (AlquimiaVectorDouble) :: mineral_rate_cnst
 !!     real (c_double) :: solid_density
      type (AlquimiaVectorDouble) :: aqueous_kinetic_rate_cnst
+     type (AlquimiaVectorDouble) :: third_party_parameter
   end type AlquimiaProperties
 
   type, public, bind(c) :: AlquimiaAuxiliaryData 
@@ -165,6 +167,7 @@ module AlquimiaContainers_module
      type (AlquimiaVectorString) :: isotherm_species_names
      type (AlquimiaVectorString) :: aqueous_kinetic_names
      type (AlquimiaVectorString) :: gas_names
+     type (AlquimiaVectorString) :: third_party_parameter_names
   end type AlquimiaProblemMetaData
 
   type, public, bind(c) :: AlquimiaAuxiliaryOutputData
